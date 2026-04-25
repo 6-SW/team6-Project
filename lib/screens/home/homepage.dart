@@ -1,209 +1,231 @@
 import 'package:flutter/material.dart';
-import 'package:ecosort/helpers/helper.dart';
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatefulWidget {
-  final String message;
-  final Map<String, dynamic> userData;
-
-  const HomePage({required this.message, required this.userData, Key? key})
-      : super(key: key);
+  const HomePage({super.key});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, dynamic>> _savedUsers = [];
-  final ScrollController _scrollController = ScrollController();
-  bool _isScrollable = false;
+  Map<String, dynamic> recyclingData = {};
+  String selectedCategory = '';
+  Map<String, dynamic>? resultItem;
+  XFile? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+  String _locationMessage = '';
+
+   
+
+  final List<Map<String, dynamic>> categories = [
+    {'key': 'plastic_bottle', 'label': '플라스틱', 'icon': '♻️'},
+    {'key': 'paper', 'label': '종이', 'icon': '📄'},
+    {'key': 'can', 'label': '캔/금속', 'icon': '🥫'},
+    {'key': 'glass', 'label': '유리', 'icon': '🍶'},
+    {'key': 'vinyl', 'label': '비닐', 'icon': '🛍️'},
+    {'key': 'trash', 'label': '일반쓰레기', 'icon': '🗑️'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _fetchUsers();
-    _printDatabasePath();
-    _scrollController.addListener(_checkIfScrollable);
+    _loadRecyclingData();
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _checkIfScrollable() {
+  Future<void> _loadRecyclingData() async {
+    final String jsonString =
+        await rootBundle.loadString('assets/recycling_data.json');
     setState(() {
-      _isScrollable = _scrollController.position.maxScrollExtent > 0 &&
-          !_scrollController.position.atEdge;
+      recyclingData = json.decode(jsonString);
     });
   }
 
-  // Function to print the database path
-  Future<void> _printDatabasePath() async {
-    String dbPath = await getDatabasesPath();
-    String fullDbPath = join(dbPath, 'user_data.db');
-    debugPrint("Database path: $fullDbPath");
-  }
-
-  // Fetch users from the database
-  Future<void> _fetchUsers() async {
-    final dbHelper = DatabaseHelper();
-    final users = await dbHelper.getUsers();
-    setState(() {
-      _savedUsers = users;
-    });
-  }
-
-  void _saveToDatabase(BuildContext context) async {
-    final dbHelper = DatabaseHelper();
-
-    // Prepare user data for insertion
-    final Map<String, dynamic> user = {
-      'display_name': widget.userData['User_Display_Name'] ?? 'N/A',
-      'email': widget.userData['Email'] ?? 'N/A',
-      'user_code': widget.userData['User_Code'] ?? 'N/A',
-      'employee_code': widget.userData['User_Employee_Code'] ?? 'N/A',
-      'company_code': widget.userData['Company_Code'] ?? 'N/A',
-    };
-
-    try {
-      await dbHelper.insertUser(user);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User data saved successfully!')),
-      );
-      _fetchUsers(); // Refresh the saved users list
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving data: $e')),
-      );
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
     }
+  }
+
+  Future<void> _checkLocation() async {
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    setState(() => _locationMessage = '위치 서비스가 비활성화되어 있습니다');
+    return;
+  }
+
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      setState(() => _locationMessage = '위치 권한이 거부되었습니다');
+      return;
+    }
+  }
+
+  Position position = await Geolocator.getCurrentPosition();
+  
+  // 광주광역시 좌표 범위 체크
+  // 위도 35.05 ~ 35.25, 경도 126.75 ~ 127.00
+  bool isGwangju = position.latitude >= 35.05 &&
+      position.latitude <= 35.25 &&
+      position.longitude >= 126.75 &&
+      position.longitude <= 127.00;
+
+  setState(() {
+    _locationMessage = isGwangju ? '📍 광주광역시' : '📍 광주광역시 외 지역';
+  });
+}
+
+  void _onCategoryTap(String key) {
+    setState(() {
+      selectedCategory = key;
+      resultItem = recyclingData[key];
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false, // Removes the back button
-        title: const Center(
-          child: Text('EcoSort'), // Centers the title
-        ),
+        title: const Text('분리배출 도우미'),
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Message: ${widget.message}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _locationMessage.isEmpty ? '위치 미확인' : _locationMessage,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                TextButton.icon(
+                  onPressed: _checkLocation,
+                  icon: const Icon(Icons.location_on, color: Colors.green),
+                  label: const Text('위치 확인', style: TextStyle(color: Colors.green)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.green, width: 2),
+                ),
+                child: InkWell(
+                  onTap: () => _pickImage(),
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            _selectedImage!.path,
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_alt, size: 60, color: Colors.green),
+                            SizedBox(height: 10),
+                            Text('사진 촬영하기',
+                                style: TextStyle(fontSize: 18, color: Colors.green)),
+                            Text('탭하여 쓰레기를 촬영하세요',
+                                style: TextStyle(fontSize: 13, color: Colors.grey)),
+                          ],
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'User Details:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              const Text('직접 선택하기',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              _buildUserDetailsRow(
-                  'Name', widget.userData['User_Display_Name']),
-              _buildUserDetailsRow('Email', widget.userData['Email']),
-              _buildUserDetailsRow('User Code', widget.userData['User_Code']),
-              _buildUserDetailsRow(
-                  'Employee Code', widget.userData['User_Employee_Code']),
-              _buildUserDetailsRow(
-                  'Company Code', widget.userData['Company_Code']),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: () => _saveToDatabase(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 12,
-                  ),
-                ),
-                child: const Text(
-                  'Save to Database',
-                  style: TextStyle(
-                      fontSize: 16, color: Color.fromARGB(255, 255, 255, 255)),
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                'Saved Users:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Stack(
-                children: [
-                  SizedBox(
-                    height: 200, // Adjust height for scrolling
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      itemCount: _savedUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = _savedUsers[index];
-                        return ListTile(
-                          title: Text(user['display_name'] ?? 'N/A'),
-                          subtitle: Text(user['email'] ?? 'N/A'),
-                          trailing: Text(user['user_code'] ?? 'N/A'),
-                        );
-                      },
-                    ),
-                  ),
-                  if (_isScrollable)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_downward,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+              GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                children: categories.map((cat) {
+                  final isSelected = selectedCategory == cat['key'];
+                  return InkWell(
+                    onTap: () => _onCategoryTap(cat['key']),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.green : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(cat['icon'], style: const TextStyle(fontSize: 28)),
+                          const SizedBox(height: 6),
+                          Text(
+                            cat['label'],
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                  );
+                }).toList(),
               ),
+              if (resultItem != null) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(resultItem!['name'],
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green)),
+                      const SizedBox(height: 8),
+                      const Text('📌 배출 방법',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(resultItem!['method']),
+                      const SizedBox(height: 8),
+                      const Text('⚠️ 주의사항',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(resultItem!['caution']),
+                      const SizedBox(height: 8),
+                      Text('📍 ${resultItem!['region']}',
+                          style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildUserDetailsRow(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value ?? 'N/A',
-              style: const TextStyle(fontSize: 14),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }

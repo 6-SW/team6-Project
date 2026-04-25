@@ -1,15 +1,7 @@
-import 'package:ecosort/screens/landing/landingpage.dart';
+import 'package:ecosort/screens/home/homepage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: ".env");
-    debugPrint("Environment variables loaded successfully!");
-  } catch (e) {
-    debugPrint("Error loading .env file: $e");
-  }
+void main() {
   runApp(const MyApp());
 }
 
@@ -19,13 +11,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'First page of EcoSort',
+      title: '분리배출 도우미',
       theme: ThemeData(
         useMaterial3: true,
       ),
-      home: const Landingpage(),
+      home: const HomePage(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
-

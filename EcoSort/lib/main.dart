@@ -1,4 +1,4 @@
-import 'package:ecosort/screens/home/homepage.dart';
+import 'package:ecosort/screens/landing/landingpage.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -14,8 +14,9 @@ class MyApp extends StatelessWidget {
       title: '분리배출 도우미',
       theme: ThemeData(
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: const HomePage(),
+      home: const Landingpage(),
       debugShowCheckedModeBanner: false,
     );
   }

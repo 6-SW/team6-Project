@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 api_key = os.getenv("GEMINI_API_KEY")

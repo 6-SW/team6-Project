@@ -1,16 +1,13 @@
 from typing import List
 from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
-<<<<<<< HEAD:EcoSort/backend/main.py
-from classifier import classify_image
-from region_rules import get_disposal_guide
+from typing import List
 from fastapi import FastAPI, UploadFile, File, Form
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-=======
 from backend.classifier import classify_image
 from backend.region_rules import get_disposal_guide
 from backend.chatbot import ask_chatbot
->>>>>>> a196dbb (챗봇 기능 추가 및 분류 로직 수정):backend/main.py
 
 app = FastAPI(title="Waste Sorting MVP")
 

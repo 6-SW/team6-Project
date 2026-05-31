@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:typed_data';
 
 class CameraScreen extends StatefulWidget {
   final String region;
@@ -14,27 +15,30 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   XFile? _selectedImage;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
   Map<String, dynamic>? _result;
 
   Future<void> _pickImage(ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source);
-    if (image != null) {
-      setState(() {
-        _selectedImage = image;
-        _result = null;
-      });
-      await _analyzeImage(image);
-    }
+  final XFile? image = await _picker.pickImage(source: source);
+  if (image != null) {
+    final bytes = await image.readAsBytes();
+    setState(() {
+      _selectedImage = image;
+      _imageBytes = bytes;
+      _result = null;
+    });
+    await _analyzeImage(image);
   }
+}
 
   Future<void> _analyzeImage(XFile image) async {
     setState(() => _isLoading = true);
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://127.0.0.1:8000/analyze'),
+        Uri.parse('http://10.0.2.2:8000/analyze'),
       );
       request.files.add(await http.MultipartFile.fromBytes(
         'file',
@@ -86,14 +90,16 @@ class _CameraScreenState extends State<CameraScreen> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.green, width: 2),
                 ),
-                child: _selectedImage != null
+                child: _imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          _selectedImage!.path,
+                        child: Image.memory(
+                          _imageBytes!,
+                          width: double.infinity,
+                          height: 250,
                           fit: BoxFit.cover,
-                        ),
-                      )
+                      ),
+                    )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -105,7 +111,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           Text('AI가 분리배출 방법을 알려드려요',
                               style: TextStyle(fontSize: 13, color: Colors.grey)),
                         ],
-                      ),
+                      ) ,
               ),
             ),
             const SizedBox(height: 16),

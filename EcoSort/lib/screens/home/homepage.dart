@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../camera/camera_screen.dart';
 import '../guide/guide_screen.dart';
+import '../chatbot/chatbot_screen.dart';
 
 class HomePage extends StatelessWidget {
   final String region;
@@ -63,12 +64,54 @@ class HomePage extends StatelessWidget {
                 );
               },
             ),
-            const Spacer(),
+            const SizedBox(height: 20),
+            // 챗봇 버튼
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatbotScreen(region: region),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.orange, width: 1.5),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.chat, color: Colors.orange, size: 28),
+                      SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('AI 챗봇에게 물어보기',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange)),
+                          Text('분리배출 관련 질문을 자유롭게 하세요',
+                              style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
-  }
+  }   
 }
 
 class _MenuCard extends StatelessWidget {

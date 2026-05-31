@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../home/homepage.dart';
 import '../guide/guide_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class Landingpage extends StatefulWidget {
   const Landingpage({super.key});
@@ -29,15 +31,20 @@ class _LandingpageState extends State<Landingpage> {
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
         Position position = await Geolocator.getCurrentPosition();
-        bool isGwangju = position.latitude >= 35.05 &&
-            position.latitude <= 35.25 &&
-            position.longitude >= 126.75 &&
-            position.longitude <= 127.00;
-        region = isGwangju ? '광주광역시' : '광주광역시 외 지역';
+
+        // 백엔드 /region 호출
+        final response = await http.get(
+          Uri.parse('http://10.0.2.2:8000/region?lat=${position.latitude}&lon=${position.longitude}'),
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes));
+          region = data['full_name'] ?? '위치 미확인';
+        }
       }
     }
   } catch (e) {
-    // 위치 오류 시 그냥 진행
+    debugPrint('위치 오류: $e');
   }
 
   if (!mounted) return;
@@ -45,8 +52,8 @@ class _LandingpageState extends State<Landingpage> {
     context,
     MaterialPageRoute(
       builder: (context) => region == '위치 미확인'
-        ? GuideScreen(region: '위치 미확인')
-        : HomePage(region: region),
+          ? GuideScreen(region: region)
+          : HomePage(region: region),
     ),
   );
 }

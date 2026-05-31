@@ -1,128 +1,74 @@
+import os
+import json
+import requests
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
+
+KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
+
+# region_disposal.json 로드
+DATA_PATH = Path(__file__).resolve().parent / "region_disposal.json"
+with open(DATA_PATH, encoding='utf-8') as f:
+    REGION_DATA = json.load(f)
+
 FALLBACK_GUIDE = {
+    "region": "알 수 없는 지역",
     "disposal_steps": ["종량제 봉투에 담아 배출"],
-    "disposal_notes": ["재활용 불가 품목은 종량제 봉투로 처리"]
+    "disposal_notes": ["지역 기준이 다를 수 있으니 지자체 홈페이지를 확인하세요"],
+    "location": "집 앞",
+    "schedule": "지자체 기준 확인 필요"
 }
 
-# 광주 동구 공통 배출 정보 (CSV 데이터 반영)
-DONGGU_COMMON_INFO = {
-    "location": "집 앞 (문전수거)",
-    "schedule": "매일 배출"
-}
+def get_region_from_coords(lat: float, lon: float) -> tuple:
+    try:
+        url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+        headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
+        params = {"x": lon, "y": lat}
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        data = response.json()
 
-RULES = {
-    "gwangju_dong": {
-        "pet": {
-            "disposal_steps": [
-                "내용물을 완전히 비우기",
-                "물로 헹구기",
-                "라벨(비닐 스티커) 제거 후 비닐류로 별도 배출",
-                "압착 후 뚜껑 닫기",
-                "투명 페트병은 일반 플라스틱과 분리하여 별도 배출",
-                "투명한 비닐봉투에 담아 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "광주 동구는 투명 페트병 별도 분리배출 대상",
-                "이물질 묻은 경우 종량제 봉투에 배출",
-                "색깔 있는 페트병은 일반 플라스틱으로 배출"
-            ],
-        },
-        "plastic": {
-            "disposal_steps": [
-                "내용물 비우기",
-                "이물질 제거 후 헹구기",
-                "재질별로 투명한 비닐봉투에 담아 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "컵라면 용기, 과일망, 보냉팩은 종량제 봉투에 배출",
-                "오염이 심한 경우 종량제 봉투에 배출"
-            ],
-        },
-        "glass": {
-            "disposal_steps": [
-                "내용물 비우기",
-                "물로 헹구기",
-                "투명한 비닐봉투에 담아 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "깨진 유리는 신문지에 싸서 종량제 봉투에 배출",
-                "판유리, 조명기구용 유리는 재활용 불가 — 종량제 봉투 배출"
-            ],
-        },
-        "can": {
-            "disposal_steps": [
-                "내용물 비우기",
-                "물로 헹구기",
-                "가능하면 압착 후 투명한 비닐봉투에 담아 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "페인트·락카 등 내용물 남은 캔은 종량제 봉투에 배출",
-                "부탄가스 캔은 통풍 잘 되는 곳에서 구멍 뚫어 배출"
-            ],
-        },
-        "paper": {
-            "disposal_steps": [
-                "물기 없는 상태로 끈으로 묶거나 박스에 담아 배출 (동구청 지침)", # CSV 반영
-                "비닐 코팅 표지·스프링 제거 후 배출"
-            ],
-            "disposal_notes": [
-                "음식물 묻은 종이는 종량제 봉투에 배출",
-                "종이팩(우유팩)은 일반 종이류와 구분하여 별도 배출"
-            ],
-        },
-        "vinyl": {
-            "disposal_steps": [
-                "이물질 제거 후 투명봉투에 모아 배출 (동구청 지침)", # CSV 반영
-                "부피 줄여 접어서 배출"
-            ],
-            "disposal_notes": [
-                "음식물·스티커 등 이물질 있는 비닐은 종량제 봉투에 배출",
-                "은박 비닐은 종량제 봉투에 배출"
-            ],
-        },
-        "food": {
-            "disposal_steps": [
-                "물기를 최대한 줄이기 (동구청 지침)", # CSV 반영
-                "이물질(비닐, 뼈, 조개류 등) 제거",
-                "음식물 전용 용기에 담아 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "코코넛·밤·파인애플 등 딱딱한 껍데기는 일반쓰레기",
-                "뼈, 조개껍데기는 음식물 쓰레기 제외 — 종량제 봉투"
-            ],
-        },
-        "general": {
-            "disposal_steps": [
-                "종량제 봉투에 담아서 매일 배출 (동구청 지침)" # CSV 반영
-            ],
-            "disposal_notes": [
-                "재활용 불가 품목은 종량제 봉투로 처리"
-            ]
-        },
-    },
-}
-
-def resolve_region(lat: float, lon: float) -> str:
-    # TODO: 추후 광주광역시 다른 구(서구, 남구 등) 좌표 경계선 추가
-    if 35.13 <= lat <= 35.17 and 126.90 <= lon <= 126.95:
-        return "gwangju_dong"
-    return "gwangju_dong"  # 중간발표용 기본값 세팅
+        if data.get("documents"):
+            doc = data["documents"][0]
+            sido = doc.get("region_1depth_name", "")
+            sigungu = doc.get("region_2depth_name", "")
+            return sido, sigungu
+    except Exception as e:
+        print(f"카카오 API 오류: {e}")
+    return "", ""
 
 def get_disposal_guide(category: str, lat: float, lon: float) -> dict:
-    region = resolve_region(lat, lon)
-    region_rule = RULES.get(region, {})
+    sido, sigungu = get_region_from_coords(lat, lon)
     
-    # 1. 해당 지역의 카테고리별 규정 가져오기 (없으면 Fallback)
-    guide = region_rule.get(category, FALLBACK_GUIDE)
-    
-    # 2. 광주 동구일 경우, 배출 장소와 요일 같은 공통 메타데이터를 결과에 병합하여 반환
-    result = {"region": region, **guide}
-    
-    if region == "gwangju_dong":
-        result.update(DONGGU_COMMON_INFO)
+    region_info = None
+    if sido and sigungu:
+        sido_data = REGION_DATA.get(sido, {})
+        region_info = sido_data.get(sigungu)
         
-    return result
+        # 시군구 직접 매칭 안되면 부분 매칭 시도
+        if not region_info:
+            for key in sido_data:
+                if sigungu in key or key in sigungu:
+                    region_info = sido_data[key]
+                    break
 
-# --- 테스트 코드 ---
-# guide = get_disposal_guide("pet", 35.15, 126.92)
-# print(guide)
+    if not region_info:
+        return FALLBACK_GUIDE
 
+    return {
+        "region": f"{sido} {sigungu}",
+        "disposal_steps": [
+            f"생활쓰레기: {region_info['생활쓰레기배출방법']}",
+            f"음식물쓰레기: {region_info['음식물쓰레기배출방법']}",
+            f"재활용품: {region_info['재활용품배출방법']}",
+        ],
+        "disposal_notes": [
+            f"생활쓰레기 배출요일: {region_info['생활쓰레기배출요일']}",
+            f"배출시간: {region_info['생활쓰레기배출시간']}",
+            f"미수거일: {region_info['미수거일']}",
+            f"문의: {region_info['관리부서']} {region_info['관리부서전화']}",
+        ],
+        "location": region_info['배출장소'],
+        "schedule": region_info['생활쓰레기배출요일'],
+    }

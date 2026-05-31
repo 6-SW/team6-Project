@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:geolocator/geolocator.dart';
 
 class CameraScreen extends StatefulWidget {
   final String region;
@@ -45,8 +46,9 @@ class _CameraScreenState extends State<CameraScreen> {
         await image.readAsBytes(),
         filename: image.name,
       ));
-      request.fields['lat'] = '35.15';
-      request.fields['lon'] = '126.92';
+      Position position = await Geolocator.getCurrentPosition();
+      request.fields['lat'] = position.latitude.toString();
+      request.fields['lon'] = position.longitude.toString();
 
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
@@ -223,7 +225,7 @@ class _CameraScreenState extends State<CameraScreen> {
                               ),
                             )),
                     const SizedBox(height: 8),
-                    Text('📍 ${widget.region}',
+                    Text('📍 ${_result!['region'] ?? widget.region}',
                         style: const TextStyle(color: Colors.grey)),
                   ],
                 ),

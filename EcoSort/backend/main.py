@@ -1,12 +1,9 @@
 from typing import List
 from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import List
-from fastapi import FastAPI, UploadFile, File, Form
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from backend.classifier import classify_image
-from backend.region_rules import get_disposal_guide
+from backend.region_rules import get_disposal_guide, get_region_from_coords
 from backend.chatbot import ask_chatbot
 
 app = FastAPI(title="Waste Sorting MVP")
@@ -33,6 +30,11 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
 
+class RegionResponse(BaseModel):
+    sido: str
+    sigungu: str
+    full_name: str
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -52,3 +54,12 @@ async def analyze(
 def chat(request: ChatRequest):
     answer = ask_chatbot(request.message)
     return {"answer": answer}
+
+@app.get("/region", response_model=RegionResponse)
+def get_region(lat: float, lon: float):
+    sido, sigungu = get_region_from_coords(lat, lon)
+    return {
+        "sido": sido,
+        "sigungu": sigungu,
+        "full_name": f"{sido} {sigungu}" if sido else "위치 미확인"
+    }

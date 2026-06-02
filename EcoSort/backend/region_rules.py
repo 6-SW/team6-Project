@@ -3,6 +3,7 @@ import json
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
+from backend.category_catalog import WASTE_CATEGORY_CATALOG, normalize_category_key
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
@@ -39,6 +40,11 @@ def get_region_from_coords(lat: float, lon: float) -> tuple:
     return "", ""
 
 def get_disposal_guide(category: str, lat: float, lon: float) -> dict:
+    _, category_key = normalize_category_key(category)
+    category_entry = WASTE_CATEGORY_CATALOG.get(
+        category_key, WASTE_CATEGORY_CATALOG["general"]
+    )
+
     sido, sigungu = get_region_from_coords(lat, lon)
     
     region_info = None
@@ -54,16 +60,20 @@ def get_disposal_guide(category: str, lat: float, lon: float) -> dict:
                     break
 
     if not region_info:
-        return FALLBACK_GUIDE
+        return {
+            "region": FALLBACK_GUIDE["region"],
+            "disposal_steps": category_entry["default_steps"],
+            "disposal_notes": category_entry["default_notes"] + FALLBACK_GUIDE["disposal_notes"],
+            "location": FALLBACK_GUIDE["location"],
+            "schedule": FALLBACK_GUIDE["schedule"],
+        }
 
     return {
         "region": f"{sido} {sigungu}",
-        "disposal_steps": [
-            f"생활쓰레기: {region_info['생활쓰레기배출방법']}",
-            f"음식물쓰레기: {region_info['음식물쓰레기배출방법']}",
-            f"재활용품: {region_info['재활용품배출방법']}",
-        ],
-        "disposal_notes": [
+        "disposal_steps": category_entry["default_steps"],
+        "disposal_notes": category_entry["default_notes"]
+        + [
+            f"배출장소: {region_info['배출장소']}",
             f"생활쓰레기 배출요일: {region_info['생활쓰레기배출요일']}",
             f"배출시간: {region_info['생활쓰레기배출시간']}",
             f"미수거일: {region_info['미수거일']}",

@@ -1,8 +1,8 @@
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from backend.classifier import classify_image
+from backend.classifier import analyze_selected_category, classify_image
 from backend.region_rules import get_disposal_guide, get_region_from_coords
 from backend.chatbot import ask_chatbot
 
@@ -43,11 +43,31 @@ def health():
 async def analyze(
     file: UploadFile = File(...),
     lat: float = Form(...),
-    lon: float = Form(...)
+    lon: float = Form(...),
+    selected_category: Optional[str] = Form(default=None),
 ):
     image_bytes = await file.read()
-    result = classify_image(file.filename, image_bytes)
+    if selected_category:
+        result = analyze_selected_category(
+            file.filename,
+            image_bytes,
+            selected_category,
+        )
+    else:
+        result = classify_image(file.filename, image_bytes)
+
     guide = get_disposal_guide(result["category"], lat, lon)
+
+    if selected_category:
+        return {
+            "item_name": result["item_name"],
+            "category": result["category"],
+            "confidence": result["confidence"],
+            "region": guide["region"],
+            "disposal_steps": result["disposal_steps"] + guide["disposal_steps"],
+            "disposal_notes": result["disposal_notes"] + guide["disposal_notes"],
+        }
+
     return {**result, **guide}
 
 @app.post("/chat", response_model=ChatResponse)

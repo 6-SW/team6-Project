@@ -145,8 +145,6 @@ class _GuideScreenState extends State<GuideScreen> {
                     const SizedBox(height: 8),
                     Text(resultItem!['caution']),
                     const SizedBox(height: 8),
-                    Text('📍 ${resultItem!['region']}',
-                        style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),

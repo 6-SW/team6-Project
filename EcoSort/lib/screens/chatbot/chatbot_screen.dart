@@ -45,7 +45,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.219.109:8000/chat'),
+        Uri.parse('https://team6-project.onrender.com/chat'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'message': text}),
       );

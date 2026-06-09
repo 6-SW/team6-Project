@@ -39,7 +39,7 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.0.2.2:8000/analyze'),
+        Uri.parse('https://team6-project.onrender.com/analyze'),
       );
       request.files.add(await http.MultipartFile.fromBytes(
         'file',

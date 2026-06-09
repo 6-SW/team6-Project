@@ -34,7 +34,7 @@ class _LandingpageState extends State<Landingpage> {
 
         // 백엔드 /region 호출
         final response = await http.get(
-          Uri.parse('http://10.0.2.2:8000/region?lat=${position.latitude}&lon=${position.longitude}'),
+          Uri.parse('https://team6-project.onrender.com/region?lat=${position.latitude}&lon=${position.longitude}'),
         );
 
         if (response.statusCode == 200) {
